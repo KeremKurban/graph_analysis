@@ -16,7 +16,7 @@ import os
 from matplotlib.colors import LogNorm
 from scipy import spatial
 import json
-from graph_analysis.graph_analysis import GraphAnalysis
+from master import GraphAnalysis
 
 logging.basicConfig(level=logging.INFO)
 
