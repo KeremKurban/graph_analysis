@@ -3,7 +3,7 @@ from scipy import stats, sparse
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 import networkx as nx
-from graph_analysis.degree import GraphAnalysis
+# from graph_analysis.degree import GraphAnalysis
 import igraph,tqdm
 from collections import Counter
 import seaborn as sns
@@ -16,7 +16,7 @@ import os
 from matplotlib.colors import LogNorm
 from scipy import spatial
 import json
-from .graph_analysis import GraphAnalysis
+from graph_analysis.graph_analysis import GraphAnalysis
 
 logging.basicConfig(level=logging.INFO)
 
@@ -260,6 +260,7 @@ class CommonNeighbors(GraphAnalysis):
         ax.plot(x2, y2, label='%s to %s' % (analyze_population2, analyze_population1))
         ax.legend()
         plt.savefig(f'{savedir}/common_neighbor_EI_prob.png')
+        logging.info(f'Saving to {savedir}/common_neighbor_EI_prob.png saved: {os.path.exists(f"{savedir}/common_neighbor_EI_prob.png")}')
 
 
 
@@ -277,7 +278,8 @@ if __name__ == "__main__":
     circuit = Circuit(CIRCUIT_DIR)
     nodes = circuit.nodes["hippocampus_neurons"]
     edges = circuit.edges["hippocampus_neurons__hippocampus_neurons__chemical_synapse"]
-    save_dir = '/gpfs/bbp.cscs.ch/project/proj112/home/kurban/topology_paper/data/common_neighbor'
+    # save_dir = '/gpfs/bbp.cscs.ch/project/proj112/home/kurban/topology_paper/data/common_neighbor'
+    save_dir = '/home/kurban/Documents/graph_analysis/output/common_neighbors'
     os.makedirs(save_dir,exist_ok=True)
     # mtypes_by_gid = c.nodes['hippocampus_neurons'].get().mtype.values
     # high,low = analysis.bandwidth_groups(2, mtypes_by_gid)
