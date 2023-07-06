@@ -270,20 +270,20 @@ if __name__ == "__main__":
     synaptome = sparse.load_npz(adj_path)
     connectome = synaptome.copy()
     connectome[connectome > 0] = 1
-    del synaptome
+    # del synaptome
 
-    analysis = GraphAnalysis(connectome,'out')
+    analysis = GraphAnalysis(synaptome,'out')
 
     CIRCUIT_DIR =  '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/sonata/circuit_config.json'
     circuit = Circuit(CIRCUIT_DIR)
     nodes = circuit.nodes["hippocampus_neurons"]
     edges = circuit.edges["hippocampus_neurons__hippocampus_neurons__chemical_synapse"]
     # save_dir = '/gpfs/bbp.cscs.ch/project/proj112/home/kurban/topology_paper/data/common_neighbor'
-    save_dir = '/home/kurban/Documents/graph_analysis/output/common_neighbors'
+    save_dir = '/home/kurban/Documents/graph_analysis/output/common_neighbors/synaptome'
     os.makedirs(save_dir,exist_ok=True)
     # mtypes_by_gid = c.nodes['hippocampus_neurons'].get().mtype.values
     # high,low = analysis.bandwidth_groups(2, mtypes_by_gid)
 
     logging.info('Testing common neighbor bias')
-    # analysis.common_neighbor_efferent(nodes,edges,save_dir,'Excitatory',n_smpl=2500,save_matrix=True)
+    analysis.common_neighbor_efferent(nodes,edges,save_dir,'Excitatory',n_smpl=2500,save_matrix=True)
     analysis.common_neighbor_prob(nodes,edges,save_dir,'Excitatory','Inhibitory',n_smpl_population=2500)
