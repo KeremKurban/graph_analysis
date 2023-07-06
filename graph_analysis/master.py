@@ -16,8 +16,10 @@ from matplotlib.colors import LogNorm
 from scipy import spatial
 import json
 
-
 logging.basicConfig(level=logging.INFO)
+# Choose file format and DPI
+file_format = 'png'
+dpi = 300
 
 class GraphAnalysis:
     def __init__(self, adjacency_matrix,kind):
@@ -54,7 +56,7 @@ class GraphAnalysis:
         """
         Compute and return the desired degrees (in-degrees, out-degrees, or total degrees).
         """
-        logging.info(f"Computing {kind}-degrees...")
+        # logging.info(f"Computing {kind}-degrees...")
         degrees = None
         # For scipy sparse matrix, convert to csr format for efficient row operations
         if hasattr(self.adjacency_matrix, "tocsr"):
@@ -82,7 +84,7 @@ class GraphAnalysis:
         best_params = None
         best_sse = np.inf
         
-        for distribution in distributions:
+        for distribution in tqdm.tqdm(distributions):
             # Fit the distribution to the degrees
             params = distribution.fit(degrees)
             sse = self.calculate_sse(degrees, distribution, params)
@@ -201,6 +203,9 @@ class GraphAnalysis:
         return slope, intercept
     
     def plot_log_binned_degree_distribution(self, cumulative=False, title=None, fit_min_degree=10,show_plot=True):
+        '''
+        '''
+
         degree_counts = dict(Counter(self.degrees))
         max_degree = np.max(list(degree_counts.keys()))
 
@@ -216,7 +221,7 @@ class GraphAnalysis:
 
         if show_plot:
             # Plot degree distribution in log-log scale
-            plt.figure(figsize=(7, 6))
+            f = plt.figure(figsize=(7, 6))
             plt.loglog(bin_centers, hist, 'bo', markersize=5)
 
         # Calculate linear regression in log-log scale for high degrees only
@@ -353,7 +358,8 @@ class GraphAnalysis:
         plt.xlabel('Postsynaptic index')
         plt.ylabel('Presynaptic index')
         plt.title('Common efferent neighbors')	
-        plt.savefig(f'{savedir}/common_efferent_neighbors_adj.png')
+        # plt.savefig(f'{savedir}/common_efferent_neighbors_adj.png')
+        plt.savefig(f'{savedir}/common_efferent_neighbors_adj.' + file_format, dpi=dpi, bbox_inches='tight')
 
         logging.info('Calculating the histogram of common neighbors')
         def cn_mat_to_histogram(CN, bins):
@@ -370,7 +376,8 @@ class GraphAnalysis:
         plt.yscale('log')
         plt.xlabel('Number of common neighbors')
         plt.ylabel('Number of neuron pairs')
-        plt.savefig(f'{savedir}/common_neighbor_occurences.png')
+        # plt.savefig(f'{savedir}/common_neighbor_occurences.png')
+        plt.savefig(f'{savedir}/common_neighbor_occurences.' + file_format, dpi=dpi, bbox_inches='tight')
 
         logging.info('Controlling common neighbor bias against Erdos-Renyi graph')
         def control_erdos_renyi_histogram(CN, N, bins):
@@ -389,7 +396,8 @@ class GraphAnalysis:
         ax.plot(xbins[:-1], H, color='red', marker='o', label='Experiment')
         ax.plot(xbins[:-1], H_ctrl_er, color='black', marker='o', label='Control (ER)')
         ax.set_yscale('log'); ax.legend(); ax.set_xlabel('Common neighbors'); ax.set_ylabel('Pairs')
-        plt.savefig(f'{savedir}/common_neighbor_vs_ER.png')
+        # plt.savefig(f'{savedir}/common_neighbor_vs_ER.png')
+        plt.savefig(f'{savedir}/common_neighbor_vs_ER.' + file_format, dpi=dpi, bbox_inches='tight')
 
         logging.info('Controlling common neighbor bias against distance dependent configurational graph')
         nbins = 50
@@ -427,7 +435,8 @@ class GraphAnalysis:
         ax.plot(sorted(D[connections.astype(bool).toarray()]), label='Data')
         ax.plot(sorted(D[rnd_connections.astype(bool).toarray()]), label='Control')
         ax.legend(); ax.set_xlabel('Connection #'); ax.set_ylabel('Distance (um)')
-        plt.savefig(f'{savedir}/connections_dd_configurational.png')
+        # plt.savefig(f'{savedir}/connections_dd_configurational.png')
+        plt.savefig(f'{savedir}/connections_dd_configurational.' + file_format, dpi=dpi, bbox_inches='tight')
 
         rnd_com_neighs = common_efferent_neighbors(rnd_connections)
         rnd_H = cn_mat_to_histogram(rnd_com_neighs, xbins)
@@ -436,7 +445,8 @@ class GraphAnalysis:
         ax.plot(xbins[:-1], H, color='red', marker='o', label='Experiment')
         ax.plot(xbins[:-1], rnd_H, color='black', marker='o', label='Control (Dist-dep.)')
         ax.set_yscale('log'); ax.legend(); ax.set_xlabel('Common neighbors'); ax.set_ylabel('Pairs');
-        plt.savefig(f'{savedir}/common_neighbor_vs_dd_configurational.png')
+        # plt.savefig(f'{savedir}/common_neighbor_vs_dd_configurational.png')
+        plt.savefig(f'{savedir}/common_neighbor_vs_dd_configurational.' + file_format, dpi=dpi, bbox_inches='tight')
 
         def cn_bias_1(H_data, H_ctrl):
             assert len(H_data) == len(H_ctrl)
@@ -512,7 +522,8 @@ class GraphAnalysis:
         ax.plot(x1, y1, label='%s to %s' % (analyze_population1, analyze_population2))
         ax.plot(x2, y2, label='%s to %s' % (analyze_population2, analyze_population1))
         ax.legend()
-        plt.savefig(f'{savedir}/common_neighbor_EI_prob.png')
+        # plt.savefig(f'{savedir}/common_neighbor_EI_prob.png')
+        plt.savefig(f'{savedir}/common_neighbor_EI_prob.' + file_format, dpi=dpi, bbox_inches='tight')
 
 
 
@@ -549,13 +560,20 @@ if __name__ == "__main__":
     circuit = Circuit(CIRCUIT_DIR)
     nodes = circuit.nodes["hippocampus_neurons"]
     edges = circuit.edges["hippocampus_neurons__hippocampus_neurons__chemical_synapse"]
-    # save_dir = '/gpfs/bbp.cscs.ch/project/proj112/home/kurban/topology_paper/data/common_neighbor'
-    save_dir = '/home/kurban/Documents/graph_analysis/output/common_neighbors'
+    save_dir = '/gpfs/bbp.cscs.ch/project/proj112/home/kurban/topology_paper/data/common_neighbor'
+    # save_dir = '/home/kurban/Documents/graph_analysis/output/common_neighbors'
     os.makedirs(save_dir,exist_ok=True)
     # mtypes_by_gid = c.nodes['hippocampus_neurons'].get().mtype.values
     # high,low = analysis.bandwidth_groups(2, mtypes_by_gid)
 
+    # clear output folder
+    logging.info('Clearing output folder')
+    for f in os.listdir(save_dir):
+        os.remove(os.path.join(save_dir, f))
+
+
     logging.info('Testing common neighbor bias')
+
     analysis.common_neighbor_efferent(nodes,edges,save_dir,'Excitatory',n_smpl=2500,save_matrix=True)
-    #analysis.common_neighbor_prob(nodes,edges,save_dir,'Excitatory','Inhibitory',n_smpl_population=2500)
+    analysis.common_neighbor_prob(nodes,edges,save_dir,'Excitatory','Inhibitory',n_smpl_population=2500)
     logging.info(f'Results saved to {save_dir}')

@@ -7,19 +7,22 @@ import matplotlib
 import pandas as pd
 from bluepy import Circuit
 from bluepy.geometry.roi import Cube
-from coordinate_query import CoordinateQuery, query_enriched_positions, LON, TRA, RAD
+from graph_analysis.coordinate_query import CoordinateQuery, enriched_cells_positions, query_enriched_positions, LON, TRA, RAD
 import logging
 from tqdm import tqdm
 from pathlib import Path
 from voxcell.nexus.voxelbrain import Atlas
 from bluepy import Circuit
-from coordinate_query import CoordinateQuery, enriched_cells_positions, query_enriched_positions, LON, TRA, RAD
+# from coordinate_query import CoordinateQuery, enriched_cells_positions, query_enriched_positions, LON, TRA, RAD
 from log_progress import log_progress
 import os
 from voxcell import VoxelData
 import matplotlib.pyplot as plt
 from scipy import sparse
 import seaborn as sns
+
+file_format = 'png'
+dpi = 300
 
 class InformationFlowBase:
     def __init__(self, adj_path: str, longit_slice: int, intersection_masks_dir: str, circuit_dir: str):
@@ -69,7 +72,8 @@ class InformationFlowBase:
         plt.show()
         if save_parent_dir:
             os.makedirs(save_parent_dir, exist_ok=True)
-            plt.savefig(f'{save_parent_dir}/tra_{self.lon_i}.png')
+            # plt.savefig(f'{save_parent_dir}/tra_{self.lon_i}.png')
+            plt.savefig(f'{save_parent_dir}/tra_{self.lon_i}.' + file_format, dpi=dpi, bbox_inches='tight')
 
     def run(self, **kwargs):
         self.get_exc_dict()
