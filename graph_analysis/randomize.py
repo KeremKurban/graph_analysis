@@ -114,7 +114,7 @@ class DistanceDependentConfigurationalModel(RandomModel):
         ax.plot(sorted(self.distance_matrix[rnd_connections.astype(bool).toarray()]), label='Control')
         ax.legend(); ax.set_xlabel('Connection #'); ax.set_ylabel('Distance (um)')
 
-class WeightedShuffledModel(RandomModel):
+class DegreePreservingConnectomeModel(RandomModel):
     '''
     Given a network with weights, shuffle the weights while keeping the degree distribution intact.
 
@@ -128,13 +128,13 @@ class WeightedShuffledModel(RandomModel):
     scipy.sparse.csr_matrix
         Shuffled adjacency matrix
     '''
-    def __init__(self, adjacency_matrix,keep_degrees=True):
+    def __init__(self, adjacency_matrix,keep_total_degrees=True):
         super().__init__(adjacency_matrix)
         self.adjacency_matrix = adjacency_matrix
         self.keep_total_degrees = keep_total_degrees
 
     def generate(self):
-        if not self.keep_degrees:
+        if not self.keep_total_degrees:
             A = self.adjacency_matrix.copy()
             A = A.tolil()
             np.random.shuffle(A.data)
@@ -144,6 +144,27 @@ class WeightedShuffledModel(RandomModel):
             M = self.adjacency_matrix.tocoo()
             M.col = np.random.permutation(M.col)
             return M.tocsr()
+
+class WeightPermutedRandomModel(RandomModel):
+    def __init__(self, adjacency_matrix):
+        super().__init__(adjacency_matrix)
+        self.is_weighted = self.check_weighted()
+    
+    def check_weighted(self):
+        return len(self.adjacency_matrix.data) > 2
+    
+    def generate(self,seed=42):
+        if not self.is_weighted:
+            raise ValueError('Input adjacency matrix is not weighted')
+    
+        synaptome_weight_permuted = self.adjacency_matrix.copy().tocoo()
+        np.random.seed(seed)
+        synaptome_weight_permuted.data = np.random.permutation(synaptome_weight_permuted.data)
+
+        np.testing.assert_equal(synaptome_weight_permuted.count_nonzero(), self.adjacency_matrix.count_nonzero())
+        np.testing.assert_equal(synaptome_weight_permuted.data.sum(), self.adjacency_matrix.data.sum())
+
+        return synaptome_weight_permuted.tocsr()
 
 if __name__ == '__main__':
     adj_path = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/data/ca1_synaptome.npz'
