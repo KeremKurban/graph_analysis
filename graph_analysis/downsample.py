@@ -7,6 +7,7 @@ import logging
 from voxcell import VoxelData
 from voxcell.nexus.voxelbrain import Atlas
 import numpy as np
+import bluepysnap 
 
 class CoordinateQuery:
     '''
@@ -15,7 +16,7 @@ class CoordinateQuery:
     pass
 
 
-class SubmatrixGenerator(ABC):
+class VolumetricSubmatrixGenerator(ABC):
     def __init__(self, coordinate_query, ATLAS_DIR):
         self.q = coordinate_query
         self.atlas = Atlas.open(ATLAS_DIR)
@@ -39,7 +40,7 @@ class SubmatrixGenerator(ABC):
     def generate_slices(self, slice_thickness, save_dir, force_overwrite=False):
         pass
 
-class RatCA1SubmatrixGenerator(SubmatrixGenerator):
+class RatCA1SubmatrixGenerator(VolumetricSubmatrixGenerator):
     
     def generate_slices(self, slice_thickness, save_dir, force_overwrite=False):
         logging.info(f"Generating slices with thickness: {slice_thickness}")
@@ -108,7 +109,11 @@ class RatCA1SubmatrixGenerator(SubmatrixGenerator):
                 interseciton_slice = tra_slice.raw & lon_slice.raw
                 self.orientation.with_data(np.asarray(interseciton_slice, dtype=np.uint8)).save_nrrd(f"{subdirectory}/slice_LON_{lon_slice_idx}_TRA_{tra_slice_idx}.nrrd")
 
-
+class NodeSetExtractor:
+    def __init__(self,circuit:bluepysnap.Circuit) -> None:
+        self.circuit = circuit
+        self.nodes = None
+        
 if __name__ == "__main__":
     from coordinate_query import CoordinateQuery, enriched_cells_positions, query_enriched_positions, LON, TRA, RAD
 

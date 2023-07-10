@@ -133,10 +133,11 @@ class DegreePreservingConnectomeModel(RandomModel):
         self.adjacency_matrix = adjacency_matrix
         self.keep_total_degrees = keep_total_degrees
 
-    def generate(self):
+    def generate(self,seed=42):
         if not self.keep_total_degrees:
             A = self.adjacency_matrix.copy()
             A = A.tolil()
+            np.random.seed(seed)
             np.random.shuffle(A.data)
             A.setdiag(0)
             return A.tocsr()

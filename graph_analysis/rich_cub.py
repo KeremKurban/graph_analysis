@@ -110,7 +110,8 @@ class RichClubAnalysis:
             kc_possible = np.nansum(sorted(np.concatenate([kc_post.data,kc_pre.data]),reversed=True))
 
         if kc_possible == 0:
-            logging.warning("Warning: maximum possible weights in the network is 0!")
+            logging.warning(f"Warning: maximum possible weights in the network is 0 for k={k}!")
+            logging.warning(f"kc_count={kc_count}, kc_sum={kc_sum}, kc_possible={kc_possible}")
             return np.nan
         return (kc_sum) / kc_possible
 
