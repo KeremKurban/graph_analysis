@@ -14,11 +14,14 @@ env/
 *.pyc
 *.pyo
 __pycache__/
+notebooks/slurm_logs/
 
 # Ignore log files
 *.log
 *.ipynb_checkpoints/
 *.ipynb_checkpoints
+*.out
+*.err
 
 # Ignore output folder
 #/output/
