@@ -64,6 +64,8 @@ class CA1MotifCalculator:
 
         assert os.path.exists(self.adj_file), f"Adjacency matrix for {target} does not exist. Use ca1_synaptome.npz for local and ca3_synaptome.npz for projections"
 
+        # ATLAS related
+        self.q = None
 
     def evaluate(self, x, boolean_value, to_dense=True):
         '''
@@ -72,7 +74,7 @@ class CA1MotifCalculator:
         if to_dense:
             return np.where(boolean_value, x.todense(), x.todense() == 0)
         else:
-            return False  # not implemented
+            raise NotImplementedError
 
     def load_adjacency_matrix(self,return_num_projections=True):
         '''
@@ -184,20 +186,7 @@ class CA1MotifCalculator:
         #     sparse.save_npz(f'{target}_triplets_w_{check_mtypes[0]}-{check_mtypes[1]}-{check_mtypes[2]}.npz',M_sparse)
         return int(np.sum(M))
 
-    def _localize(self, target, global_indices):
-        """
-        Localize the indices of the target in the global indices.
-        For cylinder starting at 10000, 10001 ,... 10100.
-        convert it to indexable local indices 0,1,2,...,100
-        """
-
-        np.where(global_indices == target)[0][0]
-
-
     def motif_calculation(self, all2all_adj, num_SC_sample):
-        # sc_to_pc = all2all_adj[num_target_gids:num_target_gids + num_SC_sample, :num_exc_cells]  # sc x ca1_exc
-        # pc_to_sc = all2all_adj[:num_exc_cells, num_target_gids:num_target_gids + num_SC_sample]  # sc x ca1_exc
-
         mt_index_dict = {}
         if not np.all(np.isin(self.check_mtypes, [*self.mtypes,'SC','INT','INH'])): #TODO: Should fetch this from node_sets
             logging.warning(f"check_mtypes: {self.check_mtypes} not found in mtypes: {self.mtypes}. Fetching from circuit targets")
@@ -269,8 +258,18 @@ class CA1MotifCalculator:
         #     sparse.save_npz(f'{target}_triplets_w_{check_mtypes[0]}-{check_mtypes[1]}-{check_mtypes[2]}.npz',M_sparse)
         return int(np.sum(M))
 
-    def get_positions(self, gids):
-        gid_positions = self.c.cells.positions(gids)
+    def get_positions(self, target):
+        return self.c.cells.positions(target)
+    
+    def get_ltr_positions(self, target):
+        if self.q is None:
+            from graph_analysis.coordinate_query import CoordinateQuery
+            ATLAS_DIR = "/gpfs/bbp.cscs.ch/project/proj112/entities/atlas/20211004_BioM/"
+            COORDINATES_DIR = f'{ATLAS_DIR}/coordinates.nrrd'
+            self.q = CoordinateQuery(COORDINATES_DIR)
+
+        return self.q.xyz_to_ltr(self.get_positions(target).values)
+
 
     def count_motifs(self,**kwargs):
         all2all_adj = self.load_adjacency_matrix()
@@ -429,15 +428,27 @@ if __name__ == "__main__":
     # num_motifs = calculator.count_motifs()
 
 
-    motif_name = 'M'
-    check_mtypes = ['PeriSomatic_INH','PeriSomatic_INH','PeriSomatic_INH']
+    # motif_name = 'M'
+    # check_mtypes = ['PeriSomatic_INH','PeriSomatic_INH','PeriSomatic_INH']
+    # logging.info(f"Running motif calculation for {target} of motif {motif_name} of {check_mtypes}...")
+    # motif_reader = MotifReader()
+    # CM = motif_reader.name_to_matrix(motif_name)
+    # logging.info(f"Motif matrix:\n{CM}")
+    # calculator = CA1MotifCalculator(target,check_mtypes, CM)
+    # num_motifs = calculator.count_motifs(num_projection_samples=1000) # BUS ERROR if all SC
+
+
+    logging.info('Positional information on triplets')
+    motif_name = 'B'
+    check_mtypes = ['SP_PC','SP_PC','SP_PC']
     logging.info(f"Running motif calculation for {target} of motif {motif_name} of {check_mtypes}...")
     motif_reader = MotifReader()
     CM = motif_reader.name_to_matrix(motif_name)
     logging.info(f"Motif matrix:\n{CM}")
     calculator = CA1MotifCalculator(target,check_mtypes, CM)
-    num_motifs = calculator.count_motifs(num_projection_samples=1000) # BUS ERROR if all SC
-
+    calculator.analyze_positions()
+    # num_motifs = calculator.count_motifs(num_projection_samples=1000) # BUS ERROR if all SC
+    breakpoint()
 
     #TODO: boundary condition fixed
     #TODO: sample should be randomized not first k indices
