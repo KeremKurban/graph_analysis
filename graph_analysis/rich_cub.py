@@ -77,13 +77,20 @@ class RichClubAnalysis:
         (rest to be implemented if necessary)
         '''
 
-        assert len(np.unique(self.adjacency_matrix.A)) > 2, "Error: The graph is not weighted!"
+        is_weighted = len(np.unique(self.adjacency_matrix.A)) > 2
+        if not is_weighted:
+            logging.warning("Warning: the graph is not weighted!")
         # find total weights per node
         weights = np.array(self.adjacency_matrix.sum(axis=0)).flatten() + np.array(self.adjacency_matrix.sum(axis=1)).flatten()
         k_weights = weights[weights >= k] # filter out weights above threshold
-        
+
+        subgraph_indices = np.where(weights >= k)[0]
+
         if method == 'strongest-links-in-network':
             kc = self.adjacency_matrix[weights >= k, :][:, weights >= k] # get adj of subgraph > k
+            if kc.count_nonzero() == 0:
+                logging.warning(f"Warning: no edges in the subnetwork for k>={k}!")
+                return {'rc_coeff': np.nan, 'subgraph_inds': np.nan}
             kc_indices = kc.nonzero() # get indices of edges
             kc_count = len(kc_indices[0]) # count edges in that subgraph
             kc_sum = np.sum(kc[kc_indices]) # sum of weights in that subgraph
@@ -112,8 +119,12 @@ class RichClubAnalysis:
         if kc_possible == 0:
             logging.warning(f"Warning: maximum possible weights in the network is 0 for k={k}!")
             logging.warning(f"kc_count={kc_count}, kc_sum={kc_sum}, kc_possible={kc_possible}")
-            return np.nan
-        return (kc_sum) / kc_possible
+            logging.warning(f"subgraph top weights: {sorted(weights, reverse=True)[:10]}")
+            # return np.nan
+            return {'rc_coeff': np.nan, 'subgraph_inds': np.nan}
+        # breakpoint()
+        return {'rc_coeff': (kc_sum) / kc_possible, 'subgraph_inds': subgraph_indices}
+
 
     def directed_rich_club_coefficient(self, k):
         """
@@ -158,8 +169,9 @@ class RichClubAnalysis:
         return k, rc_coefficient
 
     def calculate_weighted_rc_coefficient(self,k,**kwargs):
-        rc_coefficient = self.weighted_rich_club_coefficient(k,**kwargs)
-        return k, rc_coefficient
+        rc_coefficient_dict = self.weighted_rich_club_coefficient(k,**kwargs)
+        logging.info(f"k={k}, rc_coefficient_dict={rc_coefficient_dict}")
+        return k, rc_coefficient_dict
 
     def calculate_rich_club_coefficients(self, weighted=False, **kwargs):
         k_values = np.arange(1, np.max(self.total_degree))
@@ -180,9 +192,8 @@ class RichClubAnalysis:
             results = compute(*[delayed(self.calculate_rc_coefficient)(k) for k in k_values], scheduler=kwargs.get('scheduler', None))
 
         # Collect the results into k_dict
-        for k, rc_coefficient in results:
-            k_dict[k] = rc_coefficient
-
+        for k, rc_coefficient_dict in results:
+            k_dict[k] = rc_coefficient_dict
         return k_dict
 
 
@@ -217,12 +228,25 @@ if __name__ == "__main__":
     # max_workers = 8
     # cluster = LocalCluster(n_workers=max_workers)
 
-    client = Client()    # Start Dask client
+    client = Client()    # Start Dask client:  scheduler='single-threaded' or 'None'
     k_dict_parallel_model = rca_syn.calculate_rich_club_coefficients(weighted=True,
                                                                 method='strongest-links-in-network',
                                                                 scheduler=None,
                                                                 step=100)
     client.shutdown()    # Shutdown the Dask client
+    # breakpoint()
+    # get mtypes in the rich club
     breakpoint()
 
+    #save pickle
+    import pickle
+    with open(f'../output/rich_club/{target}_rc_weighted_totaldegree.pkl', 'wb') as f:
+        pickle.dump(k_dict_parallel_model, f)
 
+    # f = open(f'{target}_rc_weighted_totaldegree.pkl', 'wb')
+    # pickle.dump(k_dict_parallel_model, f)
+    # f.close()
+
+    #load pickle
+    with open(f'{target}_rc_weighted_totaldegree.pkl', 'rb') as f:
+        k_dict_parallel_model = pickle.load(f)

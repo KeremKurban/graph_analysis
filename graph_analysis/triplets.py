@@ -8,8 +8,44 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import logging
+import scipy
 
 logging.basicConfig(level=logging.INFO)
+
+class MotifCalculator:
+    '''
+    Base Class for motif calculation.
+    Works with adjacency matrix and motif matrix / motif name
+    '''
+    def __init__(self,adj:scipy.sparse.csr_matrix):
+        self.adj = adj
+    
+    def count_triplet_motif(self,motif_name, **kwargs):
+        '''
+        Counts the number of motifs in the given adjacency matrix
+        '''
+        motif_reader = MotifReader()
+        motif_matrix = motif_reader.name_to_matrix(motif_name)
+
+        return self._triplet_calculation(motif_matrix)
+    
+    def evaluate(self, x, boolean_value, to_dense=True):
+        '''
+        If the boolean value is true or 1 , returns the matrix as it is . If 0 or false, returns 'logical not' of the matrix
+        '''
+        if to_dense:
+            return np.where(boolean_value, x.todense(), x.todense() == 0)
+        else:
+            raise NotImplementedError
+
+    def _triplet_calculation(self, CM, **kwargs):
+
+        A2 = self.evaluate(self.adj, CM[0, 2]) * self.evaluate(self.adj.transpose(), CM[2, 0])
+        B2 = self.evaluate(self.adj, CM[0, 1]) * self.evaluate(self.adj.transpose(), CM[1, 0])
+        C2 = self.evaluate(self.adj, CM[1, 2]) * self.evaluate(self.adj.transpose(), CM[2, 1])
+        M = np.dot(B2.T, A2) * C2
+        M_sparse = sparse.csc_matrix(M)
+        return int(np.sum(M))
 
 
 class CA1MotifCalculator:
@@ -34,18 +70,16 @@ class CA1MotifCalculator:
     
     '''
 
-    def __init__(self, target, check_mtypes, CM, exc_mtypes=['SP_PC'],adj_file=None):
+    def __init__(self, target, check_mtypes,adj_file=None):
         self.target = target
-        self.adj_file = f'/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/data/ca1_ca3_to_{target}_synaptome.npz'
-        self.CM = CM  # Connectivity matrix for FFI motif [SC,INT_mtype,SP_PC] np.array([[0, 1, 1], [0, 0, 1], [0, 0, 0]])
-        self.exc_mtypes = exc_mtypes
+        self.adj_file = f'/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/data/ca1_ca3_to_{target}_synaptome.npz' #FIXME: This needs to be fetched from the circuit if it doesnt exist
         self.check_mtypes = check_mtypes # i.e. ['SP_PC','SP_CCKBC','SP_Ivy']
         # order exc first!!
-        self.mtypes_order = ['SP_PC', 'SLM_PPA', 'SO_BP', 'SO_BS', 'SO_OLM', 'SO_Tri', 'SP_AA', 'SP_BS', 'SP_CCKBC', 'SP_Ivy', 'SP_PVBC', 'SR_SCA'] # TODO: fetch from extraction
+        self.mtypes_order = ['SP_PC', 'SLM_PPA', 'SO_BP', 'SO_BS', 'SO_OLM', 'SO_Tri', 'SP_AA', 'SP_BS', 'SP_CCKBC', 'SP_Ivy', 'SP_PVBC', 'SR_SCA'] # TODO: fetch from extraction #FIXME: Doesnt apply for other circuit
         if not os.path.isfile(self.adj_file):
             raise FileNotFoundError(f"The adjacency matrix file {self.adj_file} does not exist.")
         
-        self.circuit_path = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/CircuitConfig'
+        self.circuit_path = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/CircuitConfig' #TODO: Need to be adaptable for other circuits
         if not os.path.isfile(self.circuit_path):
             raise FileNotFoundError(f"The circuit file {self.circuit_path} does not exist.")
 
@@ -53,11 +87,13 @@ class CA1MotifCalculator:
         self.c = bluepy.Circuit(self.circuit_path) 
         self.mtypes_by_gid = np.array(self.c.cells.get(self.target).mtype.values)
         self.mtypes = sorted(list(self.c.cells.mtypes))
-        self.inh_mtypes = self.mtypes.copy()
-        for exc_mtype in self.exc_mtypes:
-            self.inh_mtypes.remove(exc_mtype)
+        self.exc_mtypes = np.unique(self.c.cells.get()[self.c.cells.get().morph_class != 'INT'].mtype)
+        self.inh_mtypes =  np.unique(self.c.cells.get()[self.c.cells.get().morph_class == 'INT'].mtype)
+        # for exc_mtype in self.exc_mtypes:
+        #     breakpoint()
+        #     self.inh_mtypes.remove(exc_mtype)
 
-        #TODO: Will fetch from big adjacency matrix or bluepysnap iter_connections.
+        #FIXME: supports only below targets. Will need to fetch from big adjacency matrix or bluepysnap iter_connections.
         self.supported_targets = ['cylinder300','slice10','slice15','slice20']
         if self.target not in self.supported_targets:
             raise ValueError(f"Target {self.target} is not supported. Supported targets are {self.supported_targets}")
@@ -186,8 +222,10 @@ class CA1MotifCalculator:
         #     sparse.save_npz(f'{target}_triplets_w_{check_mtypes[0]}-{check_mtypes[1]}-{check_mtypes[2]}.npz',M_sparse)
         return int(np.sum(M))
 
-    def motif_calculation(self, all2all_adj, num_SC_sample):
+    def motif_calculation(self, all2all_adj, CM, num_SC_sample):
         mt_index_dict = {}
+
+        # check if mtypes/node_sets in the given queries exist in the circuit targets (in future, this should be the only case)
         if not np.all(np.isin(self.check_mtypes, [*self.mtypes,'SC','INT','INH'])): #TODO: Should fetch this from node_sets
             logging.warning(f"check_mtypes: {self.check_mtypes} not found in mtypes: {self.mtypes}. Fetching from circuit targets")
             target_indices = []
@@ -210,7 +248,7 @@ class CA1MotifCalculator:
             mt2_to_mt3 = all2all_adj[target_indices[1],:][:,target_indices[2]]
             mt3_to_mt2 = all2all_adj[target_indices[2],:][:,target_indices[1]]
 
-        else:
+        else: # if there is not circuit target in the check_mtypes
             cumsum_mtypes_indices = self.get_mtypes_start_index()
             logging.debug(f"cumsum_mtypes_indices: {cumsum_mtypes_indices}")
 
@@ -245,13 +283,13 @@ class CA1MotifCalculator:
             mt3_to_mt2 = all2all_adj[mt_index_dict[self.check_mtypes[2]][0]:mt_index_dict[self.check_mtypes[2]][1],
                                     mt_index_dict[self.check_mtypes[1]][0]:mt_index_dict[self.check_mtypes[1]][1]] 
 
-        A2 = self.evaluate(mt1_to_mt3, self.CM[0, 2]) * self.evaluate(mt3_to_mt1.transpose(), self.CM[2, 0])
-        B2 = self.evaluate(mt1_to_mt2, self.CM[0, 1]) * self.evaluate(mt2_to_mt1.transpose(), self.CM[1, 0])
-        C2 = self.evaluate(mt2_to_mt3, self.CM[1, 2]) * self.evaluate(mt3_to_mt2.transpose(), self.CM[2, 1])
+        A2 = self.evaluate(mt1_to_mt3, CM[0, 2]) * self.evaluate(mt3_to_mt1.transpose(), CM[2, 0])
+        B2 = self.evaluate(mt1_to_mt2, CM[0, 1]) * self.evaluate(mt2_to_mt1.transpose(), CM[1, 0])
+        C2 = self.evaluate(mt2_to_mt3, CM[1, 2]) * self.evaluate(mt3_to_mt2.transpose(), CM[2, 1])
 
         M = np.dot(B2.T, A2) * C2
 
-        logging.info(f'Total instances of given motif ({MotifReader().matrix_to_name(self.CM)}) within the given adj matrix: {int(np.sum(M))}')
+        logging.info(f'Total instances of given motif ({MotifReader().matrix_to_name(CM)}) within the given adj matrix: {int(np.sum(M))}')
         M_sparse = sparse.csc_matrix(M)
         # save = input('Do you want to save the motif matrix? (y/n)')
         # if save == 'y':
@@ -280,14 +318,13 @@ class CA1MotifCalculator:
     
 class MotifReader:
     def __init__(self):
-
         self.motifs = [
             {'name': '-C','gal_index':0, 'matrix': np.array([[0,0,0], [0,0,0], [0,0,0]])},
             {'name': '-B','gal_index':1, 'matrix': np.array([[0,1,0], [0,0,0], [0,0,0]])},
             {'name': '-A','gal_index':2, 'matrix': np.array([[0,1,0], [1,0,0], [0,0,0]])},
             {'name': 'A', 'gal_index':4, 'matrix': np.array([[0,0,0], [1,0,0], [1,0,0]])},
             {'name': 'B', 'gal_index':3, 'matrix': np.array([[0,0,0], [1,0,0], [0,1,0]])},
-            {'name': 'C', 'gal_index':5, 'matrix': np.array([[0,0,0], [1,0,1], [1,0,0]])},
+            {'name': 'C', 'gal_index':5, 'matrix': np.array([[0,0,0], [1,0,1], [0,0,0]])},
             {'name': 'D', 'gal_index':7, 'matrix': np.array([[0,1,0], [1,0,0], [1,0,0]])},
             {'name': 'E', 'gal_index':8, 'matrix': np.array([[0,0,0], [1,0,0], [1,1,0]])},
             {'name': 'F', 'gal_index':6, 'matrix': np.array([[0,1,1], [1,0,0], [0,0,0]])},
@@ -301,10 +338,13 @@ class MotifReader:
         ]
 
     def matrix_to_name(self, motif_matrix):
+        import igraph
+        g = igraph.Graph.Adjacency(motif_matrix)
+
         for motif in self.motifs:
-            for i in range(4):  # Rotate 0, 90, 180, 270 degrees
-                if np.array_equal(motif_matrix, np.rot90(motif['matrix'], i)):
-                    return motif['name']
+            g_canonical = igraph.Graph.Adjacency(motif['matrix'])
+            if g.isomorphic(g_canonical):
+                return motif['name']
         return None  # Return None if no matching pattern is found
 
     def name_to_matrix(self, name):
@@ -324,6 +364,16 @@ class MotifReader:
             if motif['name'] == name:
                 return motif['gal_index']
         return None  # Return None if no matching name is found
+
+    def convert_name_to_gal_index(self,freqs:dict):
+        '''
+        Converts motif names to gal index
+        '''
+        reordered = np.zeros(len(freqs.values()))
+        for key,value in freqs.items():
+            corresponding_idx = self.name_to_index(key)
+            reordered[corresponding_idx] = value
+        return reordered
 
 class NodeSetExtractor:
     def __init__(self,circuit,adjacency_matrix,population='hippocampus_neurons'):
@@ -366,9 +416,18 @@ def test_motif_reader():
     # Test: name_to_index
     assert motif_reader.name_to_index('B') == 3
 
-    # Test: rotation equivalence
-    motif_matrix_A_rotated = np.rot90(motif_matrix_A)
-    assert motif_reader.matrix_to_name(motif_matrix_A_rotated) == 'A'
+    # Test: rotation equivalence (function in networkx)
+    A_isomorph = np.array([[0,1,0], [0,0,0], [0,1,0]])
+    A_isomorph2 = np.array([[0,0,1], [0,0,1], [0,0,0]])
+    assert motif_reader.matrix_to_name(A_isomorph) == 'A'
+    assert motif_reader.matrix_to_name(A_isomorph2) == 'A'
+
+    matrix_H = np.array([[0,1,0], [1,0,0], [1,1,0]])
+    assert motif_reader.matrix_to_name(matrix_H) == 'H'
+    H_isomorph = np.array([[0,0,1], [1,0,1], [1,0,0]])
+    assert motif_reader.matrix_to_name(H_isomorph) == 'H'
+    H_isomorph2 = np.array([[0,1,1], [0,0,1], [0,1,0]])
+    assert motif_reader.matrix_to_name(H_isomorph2) == 'H'
 
     # Test: invalid input
     assert motif_reader.matrix_to_name(np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])) is None
@@ -386,10 +445,9 @@ if __name__ == "__main__":
     test_motif_reader()
 
     supported_targets = ['cylinder300','slice10','slice15','slice20']
-    target = 'cylinder300'
+    target = 'slice10'
     target_adj_path = f'/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/data/ca1_ca3_to_{target}_synaptome.npz'
     assert os.path.exists(target_adj_path), f"Adjacency matrix for {target} does not exist. Use ca1_synaptome.npz for local and ca3_synaptome.npz for projections"
-
 
     # logging.info("Testing motif calculation with SC (sampled)...")
     # check_mtypes = ['SC','SP_Ivy','SP_PC']
@@ -398,7 +456,7 @@ if __name__ == "__main__":
     #     motif_reader = MotifReader()
     #     CM = motif_reader.name_to_matrix(motif_name)
     #     # logging.info(f"Motif matrix:\n{CM}")
-    #     calculator = CA1MotifCalculator(target, target_adj_path,check_mtypes, CM)
+    #     calculator = CA1MotifCalculator(target,check_mtypes, CM)
     #     num_motifs = calculator.count_motifs(num_projection_samples=1000)  
 
     #     if motif_name == '-A' and  check_mtypes[0] == 'SC':
@@ -408,7 +466,19 @@ if __name__ == "__main__":
     #     if CM.sum(axis=0)[2] > 0 and check_mtypes[0] == 'SC': # no one should project to SC
     #         assert num_motifs == 0, "No cells should not project to CA3"
     
+    from tqdm import tqdm
+    logging.info("Testing motif calculation internally")
+    check_mtypes = ['Mosaic','Mosaic','Mosaic']
+    frequencies = {}
+    motif_reader = MotifReader()
+    for motif_name in tqdm(['-C','-B','-A','A','B','C','D','E','F','G','H','I','J','K','L','M']):
+        logging.info(f"Running motif calculation for {target} of motif {motif_name} of {check_mtypes}...")
+        CM = motif_reader.name_to_matrix(motif_name)
+        calculator = CA1MotifCalculator(target,check_mtypes, CM)
+        num_motifs = calculator.count_motifs()  
+        frequencies[motif_name] = num_motifs
 
+    breakpoint()
 
     # CM = np.array([[0, 1, 1], [0, 0, 1], [0, 0, 0]])
     # check_mtypes = ['SP_PC','SP_CCKBC','SP_Ivy']
@@ -438,18 +508,18 @@ if __name__ == "__main__":
     # num_motifs = calculator.count_motifs(num_projection_samples=1000) # BUS ERROR if all SC
 
 
-    logging.info('Positional information on triplets')
-    motif_name = 'B'
-    check_mtypes = ['SP_PC','SP_PC','SP_PC']
-    logging.info(f"Running motif calculation for {target} of motif {motif_name} of {check_mtypes}...")
-    motif_reader = MotifReader()
-    CM = motif_reader.name_to_matrix(motif_name)
-    logging.info(f"Motif matrix:\n{CM}")
-    calculator = CA1MotifCalculator(target,check_mtypes, CM)
-    calculator.analyze_positions()
-    # num_motifs = calculator.count_motifs(num_projection_samples=1000) # BUS ERROR if all SC
-    breakpoint()
+    # logging.info('Positional information on triplets')
+    # motif_name = 'B'
+    # check_mtypes = ['SP_PC','SP_PC','SP_PC']
+    # logging.info(f"Running motif calculation for {target} of motif {motif_name} of {check_mtypes}...")
+    # motif_reader = MotifReader()
+    # CM = motif_reader.name_to_matrix(motif_name)
+    # logging.info(f"Motif matrix:\n{CM}")
+    # calculator = CA1MotifCalculator(target,check_mtypes, CM)
+    # calculator.analyze_positions()
+    # # num_motifs = calculator.count_motifs(num_projection_samples=1000) # BUS ERROR if all SC
+    # breakpoint()
 
     #TODO: boundary condition fixed
     #TODO: sample should be randomized not first k indices
-    #TODO: bus error when all SC used with big sized motifs. perhaps divide matrix into smaller pieces (dask).
+    #TODO: bus error when all SC used with big sized motifs. Fperhaps divide matrix into smaller pieces (dask).
