@@ -553,7 +553,6 @@ if __name__ == "__main__":
     connectome = synaptome.copy()
     connectome[connectome > 0] = 1
     del synaptome
-
     analysis = GraphAnalysis(connectome,'out')
 
     CIRCUIT_DIR =  '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/sonata/circuit_config.json'

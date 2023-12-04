@@ -47,7 +47,6 @@ class MotifCalculator:
         M_sparse = sparse.csc_matrix(M)
         return int(np.sum(M))
 
-
 class CA1MotifCalculator:
     '''
     Motif calculator class for calculating positional motifs in a circuit.
