@@ -5,6 +5,12 @@ from scipy.sparse import csc_matrix
 
 class TestRichClubAnalysis(unittest.TestCase):
 
+    def setUp(self):
+        self.matrix_types = [
+            "undirected_unweighted", "undirected_weighted", 
+            "directed_unweighted", "directed_weighted"
+        ]
+
     def create_test_matrix(self, matrix_type):
     
         if matrix_type == "undirected_unweighted":
@@ -19,10 +25,7 @@ class TestRichClubAnalysis(unittest.TestCase):
         return csc_matrix(matrix_data)
 
     def test_directed(self):
-        matrix_types = [
-            "undirected_unweighted", "undirected_weighted", 
-            "directed_unweighted", "directed_weighted"
-        ]
+
         expected_results = {
             "undirected_unweighted": False, 
             "undirected_weighted": False, 
@@ -30,13 +33,44 @@ class TestRichClubAnalysis(unittest.TestCase):
             "directed_weighted": True
         }
 
-        for matrix_type in matrix_types:
+        for matrix_type in self.matrix_types:
             with self.subTest(matrix_type=matrix_type):
                 test_matrix = self.create_test_matrix(matrix_type)
                 rca = RichClubAnalysis(test_matrix)
                 self.assertEqual(rca.is_Directed, expected_results[matrix_type])
-                print(matrix_type)
-                                
+
+    def test_weighted(self):
+
+        expected_results = {
+            "undirected_unweighted": False, 
+            "undirected_weighted": True, 
+            "directed_unweighted": False, 
+            "directed_weighted": True
+        }
+
+        for matrix_type in self.matrix_types:
+            with self.subTest(matrix_type=matrix_type):
+                test_matrix = self.create_test_matrix(matrix_type)
+                rca = RichClubAnalysis(test_matrix)
+                self.assertEqual(rca.is_Weighted, expected_results[matrix_type])
+    
+    def test_undirected_rich_club_coefficient(self,degree_type='indegree'):
+
+
+        expected_results = {
+            "undirected_unweighted": 0.666666666, 
+        }
+
+        for matrix_type in self.matrix_types:
+            with self.subTest(matrix_type=matrix_type):
+                test_matrix = self.create_test_matrix(matrix_type)
+                rca = RichClubAnalysis(test_matrix)
+                if not rca.is_Directed and not rca.is_Weighted:
+                    self.assertAlmostEqual(rca.undirected_rich_club_coefficient(0.5,degree_type), expected_results[matrix_type])
+                    self.assertAlmostEqual(rca.undirected_rich_club_coefficient(1,degree_type), expected_results[matrix_type])
+                    assert np.isnan(rca.undirected_rich_club_coefficient(2,degree_type))                
+
+
 
 if __name__ == '__main__':
     unittest.main()
