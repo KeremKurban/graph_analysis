@@ -1,13 +1,13 @@
 import unittest
 import os
-from coordinate_query import CoordinateQuery
-from ..downsample import RatCA1SubmatrixGenerator
+from graph_analysis.coordinate_query import CoordinateQuery
+from graph_analysis.downsample import RatCA1SubmatrixGenerator
 
 class RatCA1SubmatrixGeneratorTest(unittest.TestCase):
     def setUp(self):
         self.coordinate_query = CoordinateQuery()
-        self.ATLAS_DIR = "path/to/atlas"
-        self.save_dir = "path/to/save_dir"
+        self.ATLAS_DIR = "examples/"
+        self.save_dir = "./test_output/"
         self.generator = RatCA1SubmatrixGenerator(self.coordinate_query, self.ATLAS_DIR)
 
     def tearDown(self):

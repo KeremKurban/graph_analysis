@@ -1,18 +1,22 @@
 import unittest
-from graph_analysis import GraphAnalysis
+from graph_analysis.master import GraphAnalysis
 from bluepysnap import Circuit
 from scipy import sparse
 import numpy as np
 
 class TestGraphAnalysis(unittest.TestCase):
+
     def setUp(self):
         # Load the adjacency matrix
-        adj_path = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/data/ca1_synaptome.npz'
+        adj_path = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/data/ca1_synaptome.npz' #TODO: Too big, use sampled version
         self.adjacency_matrix = sparse.load_npz(adj_path)
 
         # Initialize a Circuit object
-        circuit_dir = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/sonata'
+        circuit_dir = '/gpfs/bbp.cscs.ch/project/proj112/circuits/CA1/20211110-BioM/sonata/circuit_config.json'
         self.circuit = Circuit(circuit_dir)
+
+        self.graph = GraphAnalysis.get_graph(edge_types=['chemical'], 
+                                            node_types=['biophysical'])
 
     def test_degree_distribution(self):
         # Create a GraphAnalysis instance

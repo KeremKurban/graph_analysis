@@ -398,6 +398,48 @@ class NodeSetExtractor:
         return np.concatenate([local_target_adj,projection_matrix[:,node_indices]],axis=0) # 6k+N x 6k for cylinder 300
         
 
+# Defining the ExtendedMotifReader class without the dependency on igraph
+class DotMotifReader:
+    def matrix_to_dotmotif(self, motif_matrix):
+        """
+        Converts a motif matrix to a DotMotif textual representation.
+        """
+        import itertools
+        node_map = {0: 'A', 1: 'B', 2: 'C'}
+        dotmotif_str = ""
+        for i, j in itertools.product(range(3), repeat=2):
+            if motif_matrix[i, j]:
+                dotmotif_str += f"{node_map[i]} -> {node_map[j]}\n"
+        return dotmotif_str.strip()
+
+    def dotmotif_to_matrix(self, dotmotif_str):
+        """
+        Converts a DotMotif textual representation to a motif matrix.
+        """
+        node_map = {'A': 0, 'B': 1, 'C': 2}
+        matrix = np.zeros((3, 3), dtype=int)
+        for line in dotmotif_str.split('\n'):
+            if '->' in line:
+                src, dst = line.split('->')
+                src = src.strip()
+                dst = dst.strip()
+                matrix[node_map[src], node_map[dst]] = 1
+        return matrix
+
+
+def test_dotmotif_reader():
+    # Example usage
+    reader = DotMotifReader()
+
+    # Convert matrix to DotMotif string
+    motif_matrix = np.array([[0, 1, 0], [1, 0, 0], [0, 1, 1]])  # This is a simple A -> B, B -> A motif
+    dotmotif_str = reader.matrix_to_dotmotif(motif_matrix)
+    print("DotMotif String:\n", dotmotif_str)
+
+    # Convert DotMotif string to matrix
+    new_matrix = reader.dotmotif_to_matrix(dotmotif_str)
+    print("Reconstructed Matrix:\n", new_matrix)
+
 def test_motif_reader():
     import numpy.testing as npt
     motif_reader = MotifReader()
@@ -441,6 +483,8 @@ if __name__ == "__main__":
     # adj_file = '/gpfs/bbp.cscs.ch/project/proj112/home/kurban/hippdiss-422/data/ca3_ca1_block_matrix.npz' #bool matrix
 
     # logging.info("Testing motif calculation...")
+    test_dotmotif_reader()
+    breakpoint()
     test_motif_reader()
 
     supported_targets = ['cylinder300','slice10','slice15','slice20']

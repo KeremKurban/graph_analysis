@@ -16,6 +16,7 @@ from matplotlib.colors import LogNorm
 from scipy import spatial
 import json
 
+
 logging.basicConfig(level=logging.INFO)
 # Choose file format and DPI
 file_format = 'png'
@@ -24,20 +25,19 @@ dpi = 300
 class GraphAnalysis:
     def __init__(self, adjacency_matrix,kind):
         self.adjacency_matrix = self.assess_input(adjacency_matrix)
-        self.is_lognormal_in = None
+        self.is_lognormal_in = None # Lazy, Not computed until called
         self.is_lognormal_out = None
         self.is_lognormal_tot = None
-        self.indegrees = self.get_degrees('in')
-        self.outdegrees = self.get_degrees('out')
+        self.indegrees = self.get_degrees('indegree')
+        self.outdegrees = self.get_degrees('outdegree')
         self.totaldegrees = self.indegrees + self.outdegrees
-        self.degrees = self.indegrees if kind == 'in' else self.outdegrees if kind == 'out' else self.totaldegrees
-        self.kind = kind
+        self.degrees = self.indegrees if kind == 'in' else self.outdegrees if kind == 'out' else self.totaldegrees # FIXME: make generic
+        self.kind = kind #TODO : Specify this in the class methods
     
     def assess_input(self,data):
         '''
         Converts certain known classes to scipy.sparse.cscmatrix
         '''
-        import igraph
         
         if isinstance(data,nx.Graph):
             return nx.adjacency_matrix(data)
@@ -62,18 +62,18 @@ class GraphAnalysis:
         if hasattr(self.adjacency_matrix, "tocsr"):
             self.adjacency_matrix = self.adjacency_matrix.tocsr()
 
-        if kind == 'in':
+        if kind == 'indegree':
             degrees = np.array(self.adjacency_matrix.sum(axis=0)).flatten()
-        elif kind == 'out':
+        elif kind == 'outdegree':
             degrees = np.array(self.adjacency_matrix.sum(axis=1)).flatten()
-        elif kind == 'total':
+        elif kind == 'totaldegree':
             in_degrees = np.array(self.adjacency_matrix.sum(axis=0)).flatten()
             out_degrees = np.array(self.adjacency_matrix.sum(axis=1)).flatten()
             degrees = in_degrees + out_degrees
         else:
             raise ValueError("Invalid degree type. Choose 'in', 'out', or 'total'.")
         
-        degrees = degrees[degrees > 0]  # Remove zero degrees
+        # degrees = degrees[degrees > 0]  # Remove zero degrees
         return degrees
 
     def fit_degree_distribution(self, degrees, distributions):
@@ -105,11 +105,11 @@ class GraphAnalysis:
         sse = np.sum((degrees - fitted_degrees) ** 2)
         return sse
 
-    def check_best_fit(self, distributions):
+    def check_best_fit(self, distributions, kind):
         """
         Find the best-fitting distribution for the degree distribution.
         """
-        degrees = self.get_degrees(self.kind)
+        degrees = self.get_degrees(kind)
         
         best_fit, best_params, best_sse = self.fit_degree_distribution(degrees, distributions)
         
@@ -156,8 +156,12 @@ class GraphAnalysis:
 
         return self.is_lognormal_in,self.is_lognormal_out,self.is_lognormal_tot
 
-    def plot_degree_distribution(self,title=None):
-        degree_counts = dict(Counter(self.degrees))
+    def plot_degree_distribution(self,title=None,kind):
+        '''
+        
+        '''
+        degrees_of_type = self.get_degrees(kind)
+        degree_counts = dict(Counter(degrees_of_type))
         degrees = list(degree_counts.keys())
         probabilities = [val / sum(degree_counts.values()) for val in degree_counts.values()]
 
@@ -191,8 +195,9 @@ class GraphAnalysis:
         plt.tight_layout()
         plt.show()
 
-    def calculate_power_law_exponent(self): # deprecated
-        degree_counts = dict(Counter(self.degrees))
+    def calculate_power_law_exponent(self,kind='indegree'): # deprecated
+        
+        degree_counts = dict(Counter(self.get_degrees(kind)))
         degrees = list(degree_counts.keys())
         probabilities = [val / sum(degree_counts.values()) for val in degree_counts.values()]
 
@@ -202,11 +207,12 @@ class GraphAnalysis:
         slope, intercept, r_value, p_value, std_err = stats.linregress(log_degrees, log_probabilities)
         return slope, intercept
     
-    def plot_log_binned_degree_distribution(self, cumulative=False, title=None, fit_min_degree=10,show_plot=True):
-        '''
+    def plot_log_binned_degree_distribution(self, kind='indegree',cumulative=False, title=None, fit_min_degree=10,show_plot=True):
         '''
 
-        degree_counts = dict(Counter(self.degrees))
+        '''
+
+        degree_counts = dict(Counter(self.get_degrees(kind)))
         max_degree = np.max(list(degree_counts.keys()))
 
         # Generate logarithmically spaced bins

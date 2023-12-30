@@ -54,12 +54,12 @@ class TestRichClubAnalysis(unittest.TestCase):
                 rca = RichClubAnalysis(test_matrix)
                 self.assertEqual(rca.is_Weighted, expected_results[matrix_type])
     
-    def test_undirected_rich_club_coefficient(self,degree_type='indegree'):
-
+    def test_undirected_rich_club_coefficient_indegree(self):
 
         expected_results = {
             "undirected_unweighted": 0.666666666, 
         }
+        degree_type = "indegree"
 
         for matrix_type in self.matrix_types:
             with self.subTest(matrix_type=matrix_type):
@@ -69,6 +69,40 @@ class TestRichClubAnalysis(unittest.TestCase):
                     self.assertAlmostEqual(rca.undirected_rich_club_coefficient(0.5,degree_type), expected_results[matrix_type])
                     self.assertAlmostEqual(rca.undirected_rich_club_coefficient(1,degree_type), expected_results[matrix_type])
                     assert np.isnan(rca.undirected_rich_club_coefficient(2,degree_type))                
+
+    
+    def test_undirected_rich_club_coefficient_outdegree(self):
+
+        expected_results = {
+            "undirected_unweighted": 0.666666666, 
+        }
+        degree_type = "outdegree"
+
+        for matrix_type in self.matrix_types:
+            with self.subTest(matrix_type=matrix_type):
+                test_matrix = self.create_test_matrix(matrix_type)
+                rca = RichClubAnalysis(test_matrix)
+                if not rca.is_Directed and not rca.is_Weighted:
+                    self.assertAlmostEqual(rca.undirected_rich_club_coefficient(0.5,degree_type), expected_results[matrix_type])
+                    self.assertAlmostEqual(rca.undirected_rich_club_coefficient(1,degree_type), expected_results[matrix_type])
+                    assert np.isnan(rca.undirected_rich_club_coefficient(2,degree_type))                
+
+    
+    def test_undirected_rich_club_coefficient_totaldegree(self):
+
+        expected_results = {
+            "undirected_unweighted": 0.666666666, 
+        }
+        degree_type = "totaldegree"
+
+        for matrix_type in self.matrix_types:
+            with self.subTest(matrix_type=matrix_type):
+                test_matrix = self.create_test_matrix(matrix_type)
+                rca = RichClubAnalysis(test_matrix)
+                if not rca.is_Directed and not rca.is_Weighted:
+                    self.assertAlmostEqual(rca.undirected_rich_club_coefficient(0.5,degree_type), expected_results[matrix_type])
+                    self.assertAlmostEqual(rca.undirected_rich_club_coefficient(2,degree_type), expected_results[matrix_type])
+                    assert np.isnan(rca.undirected_rich_club_coefficient(4,degree_type))                
 
 
 

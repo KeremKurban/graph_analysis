@@ -1,17 +1,17 @@
 import dask
-import dask.bag as db
 from dask.distributed import Client, LocalCluster
 import numpy as np
 # import dask.delayed as delayed
 from dask import compute, delayed
 import logging 
+from scipy import sparse
 
 class RichClubAnalysis:
     """
     Class for performing rich club analysis on a square sparse CSC matrix.
     """
     
-    def __init__(self, adjacency_matrix):
+    def __init__(self, adjacency_matrix: sparse.csc_matrix):
         """
         Initialize the RichClubAnalysis object.
         
@@ -35,8 +35,19 @@ class RichClubAnalysis:
     def is_Directed(self):
         if self._is_Directed is None:
             # Calculate the parameter value
-            self._is_Directed = not np.array_equal(adjacency_matrix, adjacency_matrix.T)
+            self.binary_connectome = self.adjacency_matrix.copy()
+            self.binary_connectome[self.binary_connectome != 0] = 1
+
+            if (self.binary_connectome != self.binary_connectome.T).nnz == 0:
+                self._is_Directed = False
+            else:
+                self._is_Directed = True 
+            # self._is_Directed = not np.array_equal(self.adjacency_matrix.A, self.adjacency_matrix.T.A)
         return self._is_Directed
+
+    @property
+    def is_Weighted(self):
+        return len(np.unique(self.adjacency_matrix.A)) > 2
 
     @property
     def total_degree(self):
@@ -45,9 +56,10 @@ class RichClubAnalysis:
             self._total_degree =  np.array(self.adjacency_matrix.sum(axis=0)).flatten() + np.array(self.adjacency_matrix.sum(axis=1)).flatten() # out + indegrees per node
         return self._total_degree     
 
-    def undirected_rich_club_coefficient(self, k):
+    def undirected_rich_club_coefficient(self, k, degree_type = 'indegree'):
         """
         Calculate the rich club coefficient for a given degree threshold.
+        For directed and weighted graphs, corresponding functions should be used.
         
         Parameters:
             k (int): Degree threshold.
@@ -58,7 +70,18 @@ class RichClubAnalysis:
         if self.is_Directed:
             raise ValueError("Error: The graph is directed!") 
 
-        degrees = np.array(self.adjacency_matrix.sum(axis=0)).flatten()
+        if self.is_Weighted:
+            raise ValueError("Error: The graph is weighted!")
+        
+        if degree_type == 'indegree':
+            degrees = np.array(self.adjacency_matrix.sum(axis=0)).flatten()
+        elif degree_type == 'outdegree':
+            degrees = np.array(self.adjacency_matrix.sum(axis=1)).flatten()
+        elif degree_type == 'totaldegree':
+            degrees = np.array(self.adjacency_matrix.sum(axis=0)).flatten() + np.array(self.adjacency_matrix.sum(axis=1)).flatten()
+        else:
+            raise ValueError("Error: degree_type must be indegree, outdegree or totaldegree!")
+        
         k_degrees = degrees[degrees >= k]
         kc = self.adjacency_matrix[degrees >= k, :][:, degrees >= k]
         kc_indices = kc.nonzero()
@@ -66,7 +89,7 @@ class RichClubAnalysis:
         kc_possible = len(k_degrees) * (len(k_degrees) - 1)
         if kc_possible == 0:
             return np.nan
-        return (2 * kc_count) / kc_possible
+        return kc_count / kc_possible 
     
     def weighted_rich_club_coefficient(self, k, method='strongest-links-in-network'):
         '''
@@ -79,9 +102,9 @@ class RichClubAnalysis:
 
         is_weighted = len(np.unique(self.adjacency_matrix.A)) > 2
         if not is_weighted:
-            logging.warning("Warning: the graph is not weighted!")
+            raise ValueError("Error: The graph is not weighted!")
         # find total weights per node
-        weights = np.array(self.adjacency_matrix.sum(axis=0)).flatten() + np.array(self.adjacency_matrix.sum(axis=1)).flatten()
+        weights = np.array(self.adjacency_matrix.sum(axis=0)).flatten() + np.array(self.adjacency_matrix.sum(axis=1)).flatten() #TODO: Allow in/out degree as well
         k_weights = weights[weights >= k] # filter out weights above threshold
 
         subgraph_indices = np.where(weights >= k)[0]
@@ -124,7 +147,6 @@ class RichClubAnalysis:
             return {'rc_coeff': np.nan, 'subgraph_inds': np.nan}
         # breakpoint()
         return {'rc_coeff': (kc_sum) / kc_possible, 'subgraph_inds': subgraph_indices}
-
 
     def directed_rich_club_coefficient(self, k):
         """

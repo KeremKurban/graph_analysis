@@ -1,8 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 import pytest
-
-from ..graph_analysis.triplets import MotifReader
+from graph_analysis.triplets import MotifReader
 
 
 def test_matrix_to_name():
