@@ -477,6 +477,7 @@ def test_motif_reader():
     assert motif_reader.name_to_index('Z') is None
 
 
+
 if __name__ == "__main__":
     # if len(sys.argv) < 3:
     #     raise ValueError("Please provide a target and an adjacency matrix file as command-line arguments.")

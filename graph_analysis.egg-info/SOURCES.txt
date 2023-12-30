@@ -4,3 +4,8 @@ graph_analysis.egg-info/SOURCES.txt
 graph_analysis.egg-info/dependency_links.txt
 graph_analysis.egg-info/entry_points.txt
 graph_analysis.egg-info/top_level.txt
+tests/test_downsample.py
+tests/test_graph_analysis_rat_CA1.py
+tests/test_motif_conversion.py
+tests/test_rich_club.py
+tests/test_triplet_calculation.py

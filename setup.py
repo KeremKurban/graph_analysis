@@ -9,4 +9,12 @@ setup(
             'graph_analysis = graph_analysis.master:main',
         ],
     },
+    install_requires=[
+        'numpy',
+        'scipy',
+        'igraph',
+        'pandas',
+        'networkx',
+        'matplotlib'
+    ]
 )
