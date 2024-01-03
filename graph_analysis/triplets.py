@@ -400,6 +400,10 @@ class NodeSetExtractor:
 
 # Defining the ExtendedMotifReader class without the dependency on igraph
 class DotMotifReader:
+
+    def __init__(self):
+        self.node_map = {'A': 0, 'B': 1, 'C': 2}
+
     def matrix_to_dotmotif(self, motif_matrix):
         """
         Converts a motif matrix to a DotMotif textual representation.
@@ -425,6 +429,39 @@ class DotMotifReader:
                 dst = dst.strip()
                 matrix[node_map[src], node_map[dst]] = 1
         return matrix
+
+class DotMotifAnalyzer(DotMotifReader):
+    def __init__(self, result_dict, nodes, nodeset_ids):
+        self.result_dict = result_dict
+        self.nodes = nodes
+        self.nodeset_ids = nodeset_ids
+
+    def node_participation(self, motif_name, node_feature,visualize=False):
+
+        analysis_dict = {}
+
+        for node_key in self.node_map.keys():
+            try:
+                indices = [d[node_key] for d in self.result_dict[motif_name]] # find the indices of the nodes in the motif
+                values = self.nodes.get(self.nodeset_ids[indices]).iloc[indices][node_feature] # get the values of the node feature
+                unique_values, counts = np.unique(values, return_counts=True) # count the unique values
+                analysis_dict[node_key] = dict(zip(unique_values, counts)) # store the counts in a dictionary
+            except KeyError:
+                analysis_dict[node_key] = None
+
+        if visualize: # plot motif and node feature as bar plots
+            #TODO: add graph visualization
+                        
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots(1, len(self.node_map.keys()), figsize=(15, 5))
+            for i, node_key in enumerate(self.node_map):
+                if analysis_dict[node_key] is not None:
+                    ax[i].bar(analysis_dict[node_key].keys(), analysis_dict[node_key].values())
+                    ax[i].set_title(node_key)
+            plt.show()
+
+        return analysis_dict
 
 
 def test_dotmotif_reader():
