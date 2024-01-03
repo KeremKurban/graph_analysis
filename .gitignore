@@ -22,6 +22,9 @@ notebooks/slurm_logs/
 *.ipynb_checkpoints
 *.out
 *.err
+**/*.pkl
+**/*.pickle
+**/*.p
 
 # Ignore output folder
 #/output/

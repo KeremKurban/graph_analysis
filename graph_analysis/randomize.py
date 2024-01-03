@@ -23,6 +23,11 @@ class ErdosRenyiModel(RandomModel):
         return A.astype(int)
 
 class BarabasiAlbertModel(RandomModel):
+    """
+    Barabasi-Albert Network Genation with a given number of nodes (n_nodes)
+    - For undirected case only
+    
+    """
     def __init__(self, adjacency_matrix):
         super().__init__(adjacency_matrix)
 
@@ -40,6 +45,12 @@ class BarabasiAlbertModel(RandomModel):
         return A.astype(int)
 
 class WattsStrogatzModel(RandomModel):
+    """
+    Watts Strogatz Model with parameters n_nodes.
+    
+    Not implemented fully for directed networks
+    
+    """
     def __init__(self, adjacency_matrix):
         super().__init__(adjacency_matrix)
 

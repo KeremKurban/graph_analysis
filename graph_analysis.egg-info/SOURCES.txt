@@ -3,6 +3,7 @@ graph_analysis.egg-info/PKG-INFO
 graph_analysis.egg-info/SOURCES.txt
 graph_analysis.egg-info/dependency_links.txt
 graph_analysis.egg-info/entry_points.txt
+graph_analysis.egg-info/requires.txt
 graph_analysis.egg-info/top_level.txt
 tests/test_downsample.py
 tests/test_graph_analysis_rat_CA1.py

@@ -1,0 +1,6 @@
+numpy
+scipy
+igraph
+pandas
+networkx
+matplotlib
