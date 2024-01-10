@@ -132,6 +132,7 @@ if num_workers>1:
     tasks = [dask.delayed(calculate_motif)(motif_name) for motif_name in all_motifs]
     results = dask.compute(*tasks)
     frequencies = {result[0]: result[1] for result in results if result is not None}
+    client.shutdown()
 else:
     frequencies = {}
     for motif_name in tqdm(all_motifs):
@@ -149,5 +150,11 @@ else:
 
 
 # Save the results
+os.makedirs(output_dir,exist_ok=True)
+logger.info(f"Saving the results to {output_dir}")
+
 df = pd.DataFrame.from_dict(my_dict,orient='index',columns=['Occurences'])
 df.to_csv(f'{output_dir}/{target}_{randomization_type}_motif_frequencies.csv')
+
+if __name__ == '__main__':
+    freeze_support()
